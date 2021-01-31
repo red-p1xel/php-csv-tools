@@ -1,0 +1,28 @@
+{
+  "name": "red-p1xel/php-csv-tools",
+  "description": "Native PHP tools for read/write CSV files with onboard HTML renderer",
+  "license": "MIT",
+  "require": {
+    "php": ">=8.0",
+    "giggsey/libphonenumber-for-php": "^8.12",
+    "ext-json": "*",
+    "ext-mbstring": "*"
+  },
+  "autoload": {
+    "psr-0": {
+      "": "src/"
+    }
+  },
+  "scripts": {
+    "serve": "@php -S localhost:8000"
+  },
+  "require-dev": {
+    "ext-curl" : "*",
+    "ext-dom": "*",
+    "friendsofphp/php-cs-fixer": "^2.16",
+    "phpunit/phpunit" : "^8.5",
+    "phpstan/phpstan": "^0.12.70",
+    "phpstan/phpstan-strict-rules": "^0.12.9",
+    "phpstan/phpstan-phpunit": "^0.12.17"
+  }
+}
