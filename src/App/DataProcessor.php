@@ -2,10 +2,10 @@
 
 namespace App;
 
-include __ROOT_DIR__.'whois.php';
-
-use App\Statistic\Item;
-use App\Statistic\StatsList;
+use App\Model\Call;
+use App\Model\CallRepo;
+use App\Model\StatItem;
+use App\Model\StatRepo;
 use libphonenumber\PhoneNumberUtil;
 use Storage\CSV\Reader;
 
@@ -49,6 +49,12 @@ class DataProcessor
         $ipRegionCode = self::getRegionCodeForIp($ip);
         $phoneRegionCode = $phoneUtil->getRegionCodeForNumber($phoneNumberObject);
 
+        if (strcmp($ipRegionCode, $phoneRegionCode) == 0) {
+            print "<br><b style='color: green'>[EQUAL]:<br> $ip [$ipRegionCode]<br> $phoneNumber = [$phoneRegionCode]</b><br><br>";
+            var_dump('<pre></pre>');
+        } else {
+            print "<br><b style='color: red'>[NOT_EQUAL]:<br> $ip [$ipRegionCode]<br> $phoneNumber = [$phoneRegionCode]</b><br><br>";
+        }
 
         return [
             'phone' => $phoneRegionCode,
@@ -85,7 +91,7 @@ class DataProcessor
 
         // TODO: This place ready to call methods for implement required statistic data from provided rows in this CSV.
 
-        $collection = new CallList();
+        $collection = new CallRepo();
         $totalCalls = [];
         foreach ($objects as $object => $values) {
             foreach ($values as $item) {
@@ -103,20 +109,26 @@ class DataProcessor
 
 //        $test = self::regionEqualityProcess($collection);
 
-        $stats = new StatsList();
+        $stats = new StatRepo();
         foreach ($objects as $object => $val) {
             $customerId = $object;
             $callsList = $val;
 
-
             $totalDuration = $collection->totalCallsDurationsBy($callsList);
 
-            $item = new Item();
+            $item = new StatItem();
             $item->customerId = $customerId;
             $item->totalDurationOfAllCustomersCalls = $totalDuration;
             $item->totalNumberOfAllCustomersCalls = $totalCalls[$customerId];
 
-            $proccess = self::regionEqualityProcess($callsList);
+            $process = self::regionEqualityProcess($callsList);
+
+            var_dump('<pre>', $process, '</pre>');
+
+            if (!empty($process)) {
+                $item->setSameContinentCallsTotalCount(count($process));
+                $item->setSameContinentCallsTotalDuration($process[$customerId]->duration);
+            }
 
             $stats->add($item);
         }
@@ -148,13 +160,16 @@ class DataProcessor
         foreach ($calls as $item => $call) {
             $customerId = $call->customerId;
             $duration = $call->duration;
-
             $ip = $call->ip;
             $phoneNumber = $call->phone;
 
-            $chkResult = self::checking($phoneNumber, $ip);
+            $result =self::checking($phoneNumber, $ip);
+
+            if ($result['phone'] == $result['ip']) {
+                $hasEqualRegions[$customerId] = $call;
+            }
         }
 
-        return [];
+        return $hasEqualRegions;
     }
 }

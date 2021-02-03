@@ -1,8 +1,14 @@
 <?php
 
-namespace App;
+namespace App\Model;
 
-class CallList
+use App\Model\Call;
+
+/**
+ * Class CallRepo
+ * @package App\Model
+ */
+class CallRepo implements EntityRepository
 {
     /**
      * @var Call[] Calls
@@ -71,8 +77,7 @@ class CallList
     public function totalCallsDurationsBy(array $calls)
     {
         $totalDuration = 0;
-
-        /** @var Call[] $list */
+        /** @var Call $list */
         $list = $calls;
 
         foreach ($list as $call => $val) {

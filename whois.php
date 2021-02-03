@@ -9,27 +9,25 @@
 function getIPRegionCode(string $ip)
 {
     $w = get_whois_from_server('whois.iana.org', $ip);
-    print "Response: " . PHP_EOL;
-    print $w;
-    print PHP_EOL;
-
     preg_match("#whois:\s*([\w.]*)#si", $w, $data);
-    $whois_server = $data[1];
-    print "Whois Server: $whois_server " . PHP_EOL;
+
+    if (is_array($data[1])) {
+        var_dump('<b style="color: fuchsia">$dbg</b>');
+    }
 
     // now get actual whois data
-    return get_whois_from_server($whois_server, $ip);
+    return get_whois_from_server($data[1], $ip);
 }
 
 /**
  * Get the whois result from a whois server
  * return text
  *
- * @param string $server
+ * @param $server
  * @param string $ip
  * @return false|string
  */
-function get_whois_from_server(string $server, string $ip)
+function get_whois_from_server($server, string $ip)
 {
     $data = '';
 
@@ -40,20 +38,17 @@ function get_whois_from_server(string $server, string $ip)
         die();
     }
     // Create the socket and connect
-    print "Connecting to server $server ...";
     $f = fsockopen($server, 43, $errno, $errstr, 3);    //Open a new connection
     if (!$f) {
-        print "Failed";
+        print " Failed ";
         return false;
     }
-    print "Done" . PHP_EOL;
     // Set the timeout limit for read
     if (!stream_set_timeout($f, 3)) {
         die('Unable to set set_timeout');    #Did this solve the problem ?
     }
     // Send the IP to the whois server
     if ($f) {
-        print "Sending request for ip: $ip" . PHP_EOL;
         $message = $ip . "\r\n";
         fputs($f, $message);
     }
@@ -65,12 +60,11 @@ function get_whois_from_server(string $server, string $ip)
     stream_set_blocking($f, 0);
     // If connection still valid
     if ($f) {
-        print "Starting to read socket" . PHP_EOL;
         while (!feof($f)) {
-            //print "Read attempt...".PHP_EOL;
             $data .= fread($f, 128);
         }
     }
+
     // Find data
     $needle = 'Country:';
     // escape special characters in the query
@@ -79,39 +73,12 @@ function get_whois_from_server(string $server, string $ip)
     $pattern = "/^.*$pattern.*\$/m";
     // search, and store all matching occurences in $matches
     if (preg_match("#Country:\s*([\w.]*)#si", $data, $matches)) {
-        echo "Found matches:\n";
+        echo " Found matches:\n ";
         $foundCountry = $matches[0];
         $countryCode = substr($foundCountry, -2);
         return $countryCode;
-    } else {
-        echo "No matches found";
     }
 
     // Now return the data
     return $data;
-}
-
-/**
- * @param $needle
- * @param $data
- * @return false|string
- */
-function fisearch($needle, $data)
-{
-    // escape special characters in the query
-    $pattern = preg_quote("country:", '/');
-
-    // finalise the regular expression, matching the whole line
-    $pattern = "/^.*$pattern.*\$/m";
-//    $pattern_i = "/^.*$pattern.*\$/m/i";
-
-    // search, and store all matching occurences in $matches
-    if (preg_match_all($pattern, $data, $matches)) {
-        echo "Found matches:\n";
-        $foundCountry = implode("\n", $matches[0]);
-        $countryCode = substr($foundCountry, -2);
-        return $countryCode;
-    } else {
-        echo "No matches found";
-    }
 }

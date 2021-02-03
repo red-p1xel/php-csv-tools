@@ -1,19 +1,19 @@
 <?php
 
-namespace App\Statistic;
+namespace App\Model;
 
-class Item
+class StatItem
 {
     public int $customerId;
 
     // Number of customer's calls within same continent: (int) 2
-    public int $sameContinentCallsTotalCount;
+    public int $sameContinentCallsTotalCount = 0;
 
     // Total duration of customer's calls within same continent: (int) 191 of seconds
-    public int $sameContinentCallsTotalDuration;
+    public int $sameContinentCallsTotalDuration = 0;
 
     // Number of all customer's calls: (int) 8
-    public int $totalNumberOfAllCustomersCalls;
+    public int $totalNumberOfAllCustomersCalls = 0;
 
     public int $totalDurationOfAllCustomersCalls = 0;
 
@@ -27,10 +27,13 @@ class Item
 
     /**
      * @param int $sameContinentCallsTotalCount
+     * @return int
      */
-    public function setSameContinentCallsTotalCount(int $sameContinentCallsTotalCount): void
+    public function setSameContinentCallsTotalCount(int $sameContinentCallsTotalCount): int
     {
-        $this->sameContinentCallsTotalCount = $sameContinentCallsTotalCount;
+        $this->sameContinentCallsTotalCount = $this->sameContinentCallsTotalCount + $sameContinentCallsTotalCount;
+
+        return $this->sameContinentCallsTotalCount;
     }
 
     /**
@@ -43,10 +46,13 @@ class Item
 
     /**
      * @param int $sameContinentCallsTotalDuration
+     * @return int
      */
-    public function setSameContinentCallsTotalDuration(int $sameContinentCallsTotalDuration): void
+    public function setSameContinentCallsTotalDuration(int $sameContinentCallsTotalDuration): int
     {
-        $this->sameContinentCallsTotalDuration = $sameContinentCallsTotalDuration;
+        $this->sameContinentCallsTotalDuration = $this->sameContinentCallsTotalDuration + $sameContinentCallsTotalDuration;
+
+        return$this->sameContinentCallsTotalDuration;
     }
 
     /**

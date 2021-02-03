@@ -1,32 +1,32 @@
 <?php
 
-namespace App\Statistic;
+namespace App\Model;
 
-class StatsList
+class StatRepo implements EntityRepository
 {
     /**
-     * @var Item[] StatisticItems
+     * @var StatItem[] StatisticItems
      */
     private $items;
 
     /**
      * @param mixed ...$item
      */
-    public function __construct(Item ...$item)
+    public function __construct(StatItem ...$item)
     {
         $this->items = $item;
     }
 
     /**
-     * @param Item $item
+     * @param StatItem ...$item
      */
-    public function add(Item $item): void
+    public function add(StatItem ...$item): void
     {
         $this->items[] = $item;
     }
 
     /**
-     * @return Item[] Calls
+     * @return StatItem[] Items
      */
     public function all(): array
     {
