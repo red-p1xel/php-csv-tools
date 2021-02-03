@@ -210,6 +210,7 @@ class Reader implements ReaderInterface
     public function parse(): array
     {
         $lines = [];
+        $this->offset = 0;
 
         if ($this->isValid()) {
             while (false !== ($this->value = fgetcsv($this->pointer, self::MAX_LEN))) {
