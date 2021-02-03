@@ -8,13 +8,11 @@ interface ReaderInterface
 
     public function current(): string|array;
 
-//    public function header(): array|bool;
+    public function getHeader(): array|bool;
 
     public function nextRow(): bool;
 
     public function isValid(): bool;
 
     public function rewind(): void;
-
-    public function all(): array;
 }

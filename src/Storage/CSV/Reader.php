@@ -18,31 +18,55 @@ class Reader implements ReaderInterface
     protected $pointer;
 
     /** Field delimiter character @var string */
-    protected $delimiter;
+    protected string $delimiter = ',';
 
     /** Current iterator value @var mixed */
-    protected $value;
+    protected mixed $value;
 
     /** Current iterator key @var int */
-    protected $offset;
+    protected int $offset;
 
     /** Table heading indexes fields @var array */
-    protected $headerFields; // ['customerId', 'createdAt', 'duration', 'phone', 'ip'];
+    protected array $headerFields = []; // ['customerId', 'createdAt', 'duration', 'phone', 'ip'];
+
+    private array $objectFields;
+    private array $formatters = [];
+    private $filter;
+    private $each;
+    private $group;
 
     /**
-     * @param string $file
-     * @param string $delimiter
+     * Reader constructor
+     * @param $pointer
+     */
+    public function __construct($pointer)
+    {
+        $this->pointer = $pointer;
+    }
+
+    /**
+     * Return static instance with initialized file pointer
+     *
+     * @param string $filePath
+     * @param string $mode
+     * @param null $context
+     * @return Reader
      * @throws Exception
      */
-    public function __construct($file, $delimiter = ',')
+    public static function getInstance(string $filePath, string $mode = 'r+', $context = null)
     {
-        try {
-            $this->pointer = fopen($file, 'r');
-            $this->delimiter = $delimiter;
-            $this->headerFields = $this->header();
-        } catch (\Exception $e) {
-            throw new \Exception("File can't be opened. {$e->getMessage()}", 500);
+        $args = [$filePath, $mode];
+        if (null !== $context) {
+            $args[] = false;
+            $args[] = $context;
         }
+
+        $resource = fopen(...$args);
+        if (!is_resource($resource)) {
+            throw new \Exception(sprintf('`%s`: failed to open stream: No such file or directory', $filePath));
+        }
+
+        return new self($resource);
     }
 
     /**
@@ -60,7 +84,7 @@ class Reader implements ReaderInterface
      */
     public function current(): string|array
     {
-        $this->value = fgetcsv($this->pointer, 0, $this->delimiter);
+        $this->value = fgetcsv($this->pointer, self::MAX_LEN, $this->delimiter);
         $this->offset++;
 
         return $this->value;
@@ -74,36 +98,164 @@ class Reader implements ReaderInterface
     private function header(): bool
     {
         // TODO: Implement header row validation with resolver.
+        $this->offset = 0;
+        $this->value = $this->current();
 
-        $this->headerFields = $this->current();
-        if ($this->headerFields !== null) {
-            foreach ($this->headerFields as $key => $val) {
+        if ($this->value !== null) {
+            foreach ($this->value as $key => $val) {
                 if (is_numeric($val)) {
+                    $this->offset--;
                     // TODO: Thoughts on implementation. A resolver method must prepend $headerFields to position 0 on the file pointer
                     return false;
                 }
             }
         }
 
+        $this->headerFields = $this->value;
+
         return true;
     }
 
     /**
+     * Return CSV document header
+     *
      * @return array
      */
-    public function all(): array
+    public function getHeader(): array
     {
-        $data1 = [];
+        return ($this->header() == true) ? $this->headerFields : [];
+    }
+
+    /**
+     * Return file as array of objects
+     *
+     * @param array $objectFields
+     * @return Reader
+     * @throws Exception
+     */
+    public function toObject(array $objectFields = [])
+    {
+        $headerFields = $this->headerFields;
+
+        if (empty($this->headerFields) && empty($objectFields)) {
+            throw new Exception('Undefined property `headerFields`. You must define custom fields for object.');
+        }
+        $this->objectFields = (!empty($headerFields) && !array_diff($objectFields, $headerFields))
+            ? $this->headerFields
+            : $objectFields;
+
+        return $this;
+    }
+
+    /**
+     * Format given line by key using a callable
+     *
+     * @param $key
+     * @param callable $callable
+     * @return $this
+     */
+    public function format($key, callable $callable)
+    {
+        foreach ((array)$key as $k) {
+            $this->formatters[$k][] = $callable;
+        }
+
+        return $this;
+    }
+
+    /**
+     * Set callable to be called on each line to filter lines to retrieve
+     *
+     * @param callable $callable
+     * @return $this
+     */
+    public function filter(callable $callable)
+    {
+        $this->filter = $callable;
+
+        return $this;
+    }
+
+    /**
+     * Set callable to be called on each line
+     *
+     * @param callable $callable
+     * @return $this
+     */
+    public function each(callable $callable)
+    {
+        $this->each = $callable;
+
+        return $this;
+    }
+
+    /**
+     * Set grouping rules to return file contents grouped in array
+     *
+     * @param callable $callable
+     * @return $this
+     */
+    public function groupBy(callable $callable)
+    {
+        $this->group = $callable;
+
+        return $this;
+    }
+
+    /**
+     * Parse file and return content
+     *
+     * @return array
+     */
+    public function parse(): array
+    {
+        $lines = [];
+
         if ($this->isValid()) {
-            while (false !== ($rows = fgetcsv($this->pointer, self::MAX_LEN))) {
+            while (false !== ($this->value = fgetcsv($this->pointer, self::MAX_LEN))) {
+                $line = $this->value;
+
                 // Ignore blank lines
-                if ($rows && array(null) !== $rows) {
-                    $data1 = $rows;
+                if ($line && array(null) !== $line) {
+                    $this->offset++;
+                    // Transform array of lines to object?
+                    if ($this->objectFields !== null) {
+                        $line = (object) array_combine($this->objectFields, $line);
+                    }
+                    // Execute callable to filter line
+                    if (is_callable($this->filter)) {
+                        $func = $this->filter;
+                        if (!(boolean)$func($line, $this->offset)) {
+                            continue;
+                        }
+                    }
+                    // Execute callable for each line
+                    if (is_callable($this->each)) {
+                        $func = $this->each;
+                        $line = $func($line, $this->offset);
+                    }
+
+                    foreach ($this->formatters as $key => $callables) {
+                        foreach ($callables as $callable) {
+                            if (is_object($line)) {
+                                $line->{$key} = $callable($line->{$key});
+                            } else {
+                                $line[$key] = $callable($line[$key]);
+                            }
+                        }
+                    }
+
+                    if (is_callable($this->group)) {
+                        $func = $this->group;
+                        $lines[$func($line)][] = $line;
+                    } else {
+                        $lines[] = $line;
+                    }
                 }
             }
         }
 
-        return $data1;
+        return $lines;
     }
 
     /**
@@ -134,31 +286,6 @@ class Reader implements ReaderInterface
         }
 
         return true;
-    }
-
-    /**
-     * Seek to specified line.
-     *
-     * @param  int $position
-     * @throws \Exception if the position is negative
-     */
-    public function seek($position): void
-    {
-        if ($position < 0) {
-            throw new \Exception(sprintf('%s() can\'t seek stream to negative line %d', __METHOD__, $position));
-        }
-
-        $this->rewind();
-        while ($this->index() !== $position && $this->isValid()) {
-            $this->current();
-            $this->nextRow();
-        }
-
-        if (0 !== $position) {
-            $this->offset--;
-        }
-
-        $this->current();
     }
 
     /**

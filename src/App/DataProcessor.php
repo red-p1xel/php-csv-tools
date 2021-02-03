@@ -13,6 +13,7 @@ class DataProcessor
     // ### UTILITIES ####
     private static function dd($data, string $desc = "Print data")
     {
+        $dump = $data;
         print "<br>###[" . $desc . "]###<br>";
         print "<br><pre>";
         print_r($data);
@@ -46,25 +47,26 @@ class DataProcessor
      */
     public static function handle(string $filePath): array
     {
-        // array(['customerId', 'createdAt', 'duration', 'phone', 'ip']);
 
         try {
-            $csv = self::csv($filePath);
-            $rows = $csv->all();
+            $objects = Reader::getInstance($filePath)
+                ->toObject(['customerId', 'createdAt', 'duration', 'phone', 'ip'])
+                ->groupBy(function ($line) {
+                    return $line->customerId;
+                })
+                ->parse();
         } catch (\Exception $e) {
             throw new \Exception('Oops! Something went wrong :(');
         }
 
         // TODO: This place ready to call methods for implement required statistic data from provided rows in this CSV.
 
-        // $csv->sort_by = 'customerId';
-        // $csv->seek(5)
+        self::dd($objects, "Rows");
 
-        self::dd($rows, "Rows");
 
         return [
             'data' => [
-                'csv' => $csv,
+                'csv' => $objects,
                 'success' => true,
                 'message' => 'CSV file was processed without caused errors.',
             ],
