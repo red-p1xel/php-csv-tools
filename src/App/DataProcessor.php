@@ -13,7 +13,6 @@ class DataProcessor
     // ### UTILITIES ####
     private static function dd($data, string $desc = "Print data")
     {
-        $dump = $data;
         print "<br>###[" . $desc . "]###<br>";
         print "<br><pre>";
         print_r($data);
@@ -33,10 +32,6 @@ class DataProcessor
         return $util->getRegionCodeForNumber($phoneNumberObject);
     }
 
-    private static function csv(string $filePath)
-    {
-        return new Reader($filePath);
-    }
 
     // ### DATA PROCESSING HANDLER ###
 
@@ -47,7 +42,6 @@ class DataProcessor
      */
     public static function handle(string $filePath): array
     {
-
         try {
             $objects = Reader::getInstance($filePath)
                 ->toObject(['customerId', 'createdAt', 'duration', 'phone', 'ip'])
