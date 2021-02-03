@@ -4,7 +4,7 @@ namespace Http;
 
 class Request implements RequestInterface
 {
-    protected $data;
+    public $data;
 
     public function __construct(array $data = null)
     {
