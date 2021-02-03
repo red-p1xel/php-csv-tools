@@ -256,6 +256,8 @@ class Reader implements ReaderInterface
             }
         }
 
+        ksort($lines);
+
         return $lines;
     }
 
